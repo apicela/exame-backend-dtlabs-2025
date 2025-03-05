@@ -1,1 +1,4 @@
-"# exame-backend-dtlabs-2025" 
+# exame-backend-dtlabs-2025
+
+## Endpoints
+### Auth

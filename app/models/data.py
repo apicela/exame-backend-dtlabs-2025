@@ -8,5 +8,16 @@ class Data(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False)
     temperature = db.Column(db.Float)
     humidity = db.Column(db.Float)
-    voltage = db.Column(db.Float,)
+    voltage = db.Column(db.Float)
     current = db.Column(db.Float)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'server_ulid': self.server_ulid,
+            'timestamp': self.timestamp.isoformat(),
+            'temperature': self.temperature,
+            'humidity': self.humidity,
+            'voltage': self.voltage,
+            'current': self.current
+        }

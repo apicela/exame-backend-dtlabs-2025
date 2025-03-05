@@ -36,3 +36,5 @@ def health_check_all(current_user):
         return jsonify({'message:' : e.getMessage()}), e.status_code
     except Exception as e:
         return jsonify({'message': 'Erro interno', 'error': str(e)}), 500
+    
+    

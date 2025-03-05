@@ -27,3 +27,4 @@ def login():
         return jsonify(e.getMessage()), e.status_code
     except Exception as e:
         return jsonify({'message': 'Erro interno', 'error': str(e)}), 500
+    

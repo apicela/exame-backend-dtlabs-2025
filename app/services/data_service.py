@@ -45,22 +45,26 @@ class DataService:
             current=current
         )
 
-        data_dict = {
-            'server_ulid': new_data.server_ulid,
-            'timestamp': new_data.timestamp.isoformat(),
-            'temperature': new_data.temperature,
-            'humidity': new_data.humidity,
-            'voltage': new_data.voltage,
-            'current': new_data.current
-        }
+        # data_dict = {
+        #     'server_ulid': new_data.server_ulid,
+        #     'timestamp': new_data.timestamp.isoformat(),
+        #     'temperature': new_data.temperature,
+        #     'humidity': new_data.humidity,
+        #     'voltage': new_data.voltage,
+        #     'current': new_data.current
+        # }
 
 
-        serialized_data = json.dumps(data_dict)
-        serialized_server = json.dumps(server.to_dict())
-        redis_client.rpush('data_queue', f"{serialized_server}|{serialized_data}")
-        db.session.add(server)
-        db.session.add(new_data)
-        db.commit()
+        #serialized_data = json.dumps(data_dict)
+        #serialized_server = json.dumps(server.to_dict())
+      #  redis_client.rpush('data_queue', f"{serialized_server}|{serialized_data}")
+
+        try:
+            db.session.add(new_data)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise ErrorResponse(e, 500)
         return {'message': 'Data inserted successfully'}
     
     def get_data(current_user, server_ulid, start_time, end_time, sensor_type, aggregation):

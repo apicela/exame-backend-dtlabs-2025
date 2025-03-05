@@ -13,6 +13,7 @@ services:
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/mydatabase
       - REDIS_URL=redis://redis:6379/0
+    restart: always  # Garantindo que o Flask seja reiniciado em caso de falha
     networks:
       - mynetwork
 

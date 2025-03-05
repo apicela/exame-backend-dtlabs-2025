@@ -26,9 +26,9 @@ app.register_blueprint(auth_route)
 app.register_blueprint(server_route)
 app.register_blueprint(data_route)
 
-# redisUtils = RedisUtils(app)
-# processing_thread = threading.Thread(target=redisUtils.process_data, daemon=True)
-# processing_thread.start()
+redisUtils = RedisUtils(app)
+processing_thread = threading.Thread(target=redisUtils.process_data, daemon=True)
+processing_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True)

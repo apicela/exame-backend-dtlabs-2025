@@ -5,6 +5,9 @@ from app.extensions import db, redis_client
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import json
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 class DataService:
     def insert_data(server_ulid, timestamp, temperature, humidity, voltage, current):
@@ -45,51 +48,75 @@ class DataService:
             current=current
         )
 
-        # data_dict = {
-        #     'server_ulid': new_data.server_ulid,
-        #     'timestamp': new_data.timestamp.isoformat(),
-        #     'temperature': new_data.temperature,
-        #     'humidity': new_data.humidity,
-        #     'voltage': new_data.voltage,
-        #     'current': new_data.current
-        # }
+        data_dict = {
+            'server_ulid': new_data.server_ulid,
+            'timestamp': new_data.timestamp.isoformat(),
+            'temperature': new_data.temperature,
+            'humidity': new_data.humidity,
+            'voltage': new_data.voltage,
+            'current': new_data.current
+        }
 
 
-        #serialized_data = json.dumps(data_dict)
-        #serialized_server = json.dumps(server.to_dict())
-      #  redis_client.rpush('data_queue', f"{serialized_server}|{serialized_data}")
+        serialized_data = json.dumps(data_dict)
+        serialized_server = json.dumps({
+            'last_ping': server.last_ping.isoformat(),
+            'last_data_timestamp': server.last_data_timestamp.isoformat(),
+            'server_ulid': server.server_ulid
+        })
+        redis_client.rpush('data_queue', f"{serialized_server}|{serialized_data}")
 
-        try:
-            db.session.add(new_data)
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            raise ErrorResponse(e, 500)
         return {'message': 'Data inserted successfully'}
     
-    def get_data(current_user, server_ulid, start_time, end_time, sensor_type, aggregation):
-        query = db.session.query(Data.timestamp, getattr(Data, sensor_type)).filter(getattr(Data, sensor_type).isnot(None))
+    @staticmethod
+    def get_data(current_user, server_ulid=None, start_time=None, end_time=None, sensor_type=None, aggregation=None):
+        logging.debug(f"get_data: {current_user}, {server_ulid}, {start_time}, {end_time}, {sensor_type}, {aggregation}")   
+        query = db.session.query(Data.timestamp)
 
+        valid_sensors = ['temperature', 'humidity', 'voltage', 'current']
+
+        if sensor_type:
+            if sensor_type not in valid_sensors:
+                return {"error": f"Sensor inválido: {sensor_type}"}, 400
+            query = query.add_columns(getattr(Data, sensor_type))
+        else:
+            for sensor in valid_sensors:
+                query = query.add_columns(getattr(Data, sensor))
+
+        filters = []
         if server_ulid:
-            query = query.filter(Data.server_ulid == server_ulid)
-        if start_time and end_time:
-            query = query.filter(Data.timestamp.between(start_time, end_time))
-        
-        if aggregation:
-            if aggregation == 'minute':
-                time_trunc = func.date_trunc('minute', Data.timestamp)
-            elif aggregation == 'hour':
-                time_trunc = func.date_trunc('hour', Data.timestamp)
-            elif aggregation == 'day':
-                time_trunc = func.date_trunc('day', Data.timestamp)
-            else:
-                raise ErrorResponse("Invalid aggregation", 400)
+            filters.append(Data.server_ulid == server_ulid)
 
-            query = db.session.query(
-                time_trunc.label("timestamp"),
-                func.avg(getattr(Data, sensor_type)).label(sensor_type)
-            ).group_by(time_trunc)
-        
+        from datetime import datetime
+        def parse_time(value):
+            if isinstance(value, str):
+                try:
+                    return datetime.fromisoformat(value)
+                except ValueError:
+                    return None
+            return value  
+
+        start_time = parse_time(start_time)
+        end_time = parse_time(end_time)
+
+        if start_time and end_time:
+            filters.append(and_(Data.timestamp >= start_time, Data.timestamp <= end_time))
+
+        if filters:
+            query = query.filter(*filters)
+
+        logging.debug(f"SQL Query: {query}")
+
         results = query.all()
 
-        return [{'timestamp': result[0], sensor_type: result[1]} for result in results]
+        # Construindo a resposta removendo valores None
+        response = [
+            {key: value for key, value in {
+                'timestamp': result[0], 
+                **({sensor: result[idx + 1] for idx, sensor in enumerate(valid_sensors) if result[idx + 1] is not None} if not sensor_type else {sensor_type: result[1] if result[1] is not None else None})
+            }.items() if value is not None}
+            for result in results
+        ]
+        
+        return response
+

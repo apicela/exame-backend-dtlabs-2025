@@ -1,4 +1,4 @@
-# exame-backend-dtlabs-2025
+# testando o flask api
 ## ⚙️ Como configurar para teste da aplicação
 ### Método 1 - Utilizando Docker (recomendado) - não requer Java e Gradle instalados em sua máquina:
 1. Clone este repositório: 
